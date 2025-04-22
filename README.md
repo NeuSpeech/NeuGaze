@@ -8,4 +8,10 @@ YouTube: https://www.youtube.com/watch?v=s8m4M9XCUSo&t=39s
 
 Bilibili: https://www.bilibili.com/video/BV1kKdYYVEEM/?spm_id_from=333.1387.homepage.video_card.click&vd_source=80cfd0f23a737ec4dee4be764cccc8fc
 
-Those who think our paper can be published in a good journal or conference, please connect with me and participate.
+Those who think they can help our paper to be published in a good journal or conference, please contact me.
+
+If you want to try this, please contact me.
+
+Anything else, please contact me.
+
+Email: yyang937@connect.hkust-gz.edu.cn
