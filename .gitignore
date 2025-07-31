@@ -1,0 +1,15 @@
+calibration/
+model_weights/
+videos/
+*.pyc
+**/*.pyc
+**/__pycache__
+build/
+dist/
+*.log
+*.spec
+flutter_application_1/
+.idea/
+.vscode
+*.pkl
+add_watermark.py

@@ -1,0 +1,34 @@
+{
+    "iteration": 2,
+    "num_datasets": 2,
+    "train_folders": [
+        "../calibration/20250730_232358",
+        "../calibration/20250730_232446"
+    ],
+    "test_folder": "../calibration/20250730_232848",
+    "num_train_samples": 270,
+    "num_test_samples": 375,
+    "model_config": {
+        "regression_model_type": "lassocv",
+        "feature_type": "basic"
+    },
+    "train_score": 0.8673822884882458,
+    "test_score": 0.6912980605403751,
+    "error_statistics_px": {
+        "mae_x": 404.02729232313266,
+        "mae_y": 244.08569278268888,
+        "med": 526.5463338910323,
+        "std": 296.82181013428595,
+        "max": 2098.796619260742,
+        "min": 37.806914564953864
+    },
+    "error_statistics_mm": {
+        "mae_x": 45.321551085466,
+        "mae_y": 27.383363659057913,
+        "med": 59.06729209524491,
+        "std": 33.29617415576414,
+        "max": 235.44006165153613,
+        "min": 4.24102968459661
+    },
+    "output_dir": "..\\results\\progressive_training_with_kalman_fixed\\iteration_02_datasets_2"
+}

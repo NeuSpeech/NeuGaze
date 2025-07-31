@@ -1,0 +1,58 @@
+================================================================================
+Progressive Training Error Analysis Comprehensive Report
+================================================================================
+Generated at: 2025-08-01 00:25:28
+Model configuration: lassocv (basic features)
+Screen configuration: 3072×1920px
+Physical size: 344.6×215.4mm
+
+Training Configuration Summary:
+----------------------------------------
+Iteration 1: Using 1 datasets, 135 training samples
+Iteration 2: Using 2 datasets, 270 training samples
+Iteration 3: Using 3 datasets, 405 training samples
+Iteration 4: Using 4 datasets, 540 training samples
+Iteration 5: Using 5 datasets, 675 training samples
+Test data: 375 samples
+
+Performance Summary:
+----------------------------------------
+Best pixel error: Iteration 4 (424.71px)
+Best millimeter error: Iteration 4 (47.64mm)
+Overall improvement rate (pixels): 9.2%
+Overall improvement rate (millimeters): 9.2%
+
+Detailed Results:
+----------------------------------------
+
+Iteration 1 (using 1 datasets):
+  Training R² score: 0.8539
+  Testing R² score: 0.7846
+  Pixel error - MED: 470.72px, X-MAE: 395.73px, Y-MAE: 178.45px
+  Millimeter error - MED: 52.80mm, X-MAE: 44.39mm, Y-MAE: 20.02mm
+
+Iteration 2 (using 2 datasets):
+  Training R² score: 0.8674
+  Testing R² score: 0.6913
+  Pixel error - MED: 526.55px, X-MAE: 404.03px, Y-MAE: 244.09px
+  Millimeter error - MED: 59.07mm, X-MAE: 45.32mm, Y-MAE: 27.38mm
+
+Iteration 3 (using 3 datasets):
+  Training R² score: 0.8634
+  Testing R² score: 0.7845
+  Pixel error - MED: 449.23px, X-MAE: 357.40px, Y-MAE: 199.95px
+  Millimeter error - MED: 50.39mm, X-MAE: 40.09mm, Y-MAE: 22.43mm
+
+Iteration 4 (using 4 datasets):
+  Training R² score: 0.8657
+  Testing R² score: 0.8168
+  Pixel error - MED: 424.71px, X-MAE: 350.14px, Y-MAE: 175.34px
+  Millimeter error - MED: 47.64mm, X-MAE: 39.28mm, Y-MAE: 19.67mm
+
+Iteration 5 (using 5 datasets):
+  Training R² score: 0.8620
+  Testing R² score: 0.8124
+  Pixel error - MED: 427.33px, X-MAE: 350.22px, Y-MAE: 178.40px
+  Millimeter error - MED: 47.94mm, X-MAE: 39.29mm, Y-MAE: 20.01mm
+
+================================================================================

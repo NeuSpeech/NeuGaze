@@ -1,0 +1,16 @@
+# =============================================================================
+# NeuSpeech Institute, NeuGaze Project
+# Copyright (c) 2024 Yiqian Yang
+#
+# This code is part of the NeuGaze project developed at NeuSpeech Institute.
+# Author: Yiqian Yang
+#
+# This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 
+# International License. To view a copy of this license, visit:
+# http://creativecommons.org/licenses/by-nc/4.0/
+# =============================================================================
+
+a=[1,2,3,4,5,6,7,1,8,9]
+
+a.clear()
+print(a)

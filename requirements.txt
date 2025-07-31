@@ -1,0 +1,17 @@
+torch>=2.6.0 --index-url https://download.pytorch.org/whl/cu126
+torchvision>=0.21.0
+torchaudio>=2.6.0
+mediapipe>=0.10.14
+opencv-python>=4.10.0.84
+jsonlines
+keyboard
+pywin32
+filterpy>=1.4.5
+onnxruntime>=1.21.1
+tqdm>=4.67.1
+PySide6
+scikit-learn>=1.6.1
+ncnn
+pnnx
+pyyaml
+pyautogui 

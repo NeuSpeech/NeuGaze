@@ -1,0 +1,29 @@
+{
+    "kalman_config": {
+        "dt": 0.04,
+        "kalman_filter_std_measurement": 4.0,
+        "Q_coef": 0.01
+    },
+    "statistics": {
+        "raw_predictions": {
+            "mean_error": 470.72258520835516,
+            "std_error": 295.2610543038926,
+            "median_error": 419.985342361304,
+            "max_error": 1937.036126275101,
+            "min_error": 7.8923384670918955
+        },
+        "filtered_predictions": {
+            "mean_error": 406.00867200824337,
+            "std_error": 253.34118003250308,
+            "median_error": 328.42379395429083,
+            "max_error": 1942.41112506068,
+            "min_error": 7.255455596003263
+        },
+        "improvement": {
+            "mean_error_reduction": 64.71391320011179,
+            "improvement_percentage": 13.747781651791271
+        }
+    },
+    "num_points": 25,
+    "num_predictions_per_point": 15
+}
