@@ -1,15 +1,3 @@
-# =============================================================================
-# NeuSpeech Institute, NeuGaze Project
-# Copyright (c) 2024 Yiqian Yang
-#
-# This code is part of the NeuGaze project developed at NeuSpeech Institute.
-# Author: Yiqian Yang
-#
-# This work is licensed under the Creative Commons Attribution-NonCommercial 4.0 
-# International License. To view a copy of this license, visit:
-# http://creativecommons.org/licenses/by-nc/4.0/
-# =============================================================================
-
 gaze_config:
   history_duration: 0.15
   update_interval: 0.02
@@ -46,16 +34,16 @@ integrated_config:
   arch: mobileone_s0
   device: cpu
   cam_id: 0
-  num_points: 25
+  num_points: 9
   every_point_has_n_images: 15
   images_freq: 15
   each_point_wait_time: 1000
   edge: 0.05
   radius: 20
-  func: sequence
+  func: random
   window_name: track
   render_in_eval: false
-  kalman_filter_std_measurement: 4.0
+  kalman_filter_std_measurement: 2.0
   Q_coef: 0.01
   dt: 0.04
   screen_size:
@@ -77,9 +65,9 @@ head_angles_center:
   pitch: 0.0
   roll: 0.0
 head_angles_scale:
-  yaw: 6.0
-  pitch: 6.0
-  roll: 6.0
+  yaw: 88.0
+  pitch: 88.0
+  roll: 88.0
 expression_evaluator_config:
   expressions:
     numlock:

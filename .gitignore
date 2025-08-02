@@ -13,3 +13,5 @@ flutter_application_1/
 .vscode
 *.pkl
 add_watermark.py
+image/
+results/
