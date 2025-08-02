@@ -9,7 +9,7 @@
 [![Python](https://img.shields.io/badge/Python-3.11+-blue.svg)](https://www.python.org/)
 [![Platform](https://img.shields.io/badge/Platform-Windows-green.svg)](https://www.microsoft.com/)
 [![License](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
-
+QQ 群 ：809133143
 *一个结合面部表情识别、头部动作追踪和凝视估计的非侵入式计算机控制系统，专为免手操作的人机交互而设计。*
 
 </div>
