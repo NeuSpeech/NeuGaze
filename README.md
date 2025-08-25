@@ -14,10 +14,9 @@
 
 This system enables complex action game control, as demonstrated in the video showing Black Myth: Wukong defeating the Yin Tiger boss. It can also be used to play MOBA games like Honor of Kings, FPS games like CS2, and many other game types.
 
-<video src="assets/neugaze_wukong.mp4" controls width="720">
+<video src="https://github.com/NeuSpeech/NeuGaze/raw/main/assets/neugaze_wukong.mp4" controls width="720">
 </video>
 
-</div>
 
 ---
 
