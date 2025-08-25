@@ -14,7 +14,10 @@ QQ 群 ：809133143
 
 用这个系统可以完成复杂的动作游戏的操控，如视频中展示的黑神话悟空打败寅虎。还可以用来玩王者荣耀这种MOBA游戏，CS2等FPS游戏。
 
-[![Watch the video](assets/video_img.png)](https://github.com/user-attachments/assets/2b604e6e-7468-470c-a3df-afc302ffedb0)
+<div align="center">
+    <h3>NeuGaze wukong</h3>
+    <video src="https://github.com/user-attachments/assets/2b604e6e-7468-470c-a3df-afc302ffedb0" />
+</div>
 ---
 
 
