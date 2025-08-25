@@ -229,7 +229,7 @@ class IntegratedRegressionMediaPipeline:
         self.start_with_calibration=start_with_calibration
         self.is_calibrating=start_with_calibration
         self.end_calibration_signal=False
-
+        self.frame_size=None
         # 累积训练配置
         self.use_accumulated_training = use_accumulated_training
         self.max_accumulated_datasets = max_accumulated_datasets
@@ -275,7 +275,6 @@ class IntegratedRegressionMediaPipeline:
         self.idx_tensor = torch.FloatTensor(self.idx_tensor).to(self.device)
 
         self.frame = None
-        self.step_results = None
         self.FPS=-1
         # init a list to store frame, milliseconds
         # init a list to store step_results
@@ -327,66 +326,11 @@ class IntegratedRegressionMediaPipeline:
 
     def step(self, frame: np.ndarray):
         with self.lock:
-            h, w = frame.shape[:2]
-            # Creating containers
-            face_imgs = []
-            bboxes = []
-            landmarks = []
-            scores = []
-            t3 = time.time()
-            if self.include_detector:
-                t5 = time.time()
-                # 把这里替换掉最方便，在外面对self.faces赋值，这里直接用就行。
-                faces = self.face_boxes
-                t6 = time.time()
-                # print(f'detector time:{t6 - t5}s\n')
-                # print(f'faces:{faces}')
-                if faces is not []:
-                    for box in faces:
-                        box = np.array(box) * np.array([w, w, h, h])
-                        # Extract safe min and max of x,y
-                        x_min = int(box[0])
-                        if x_min < 0:
-                            x_min = 0
-                        y_min = int(box[2])
-                        if y_min < 0:
-                            y_min = 0
-                        x_max = int(box[1])
-                        y_max = int(box[3])
-
-                        # Crop image
-                        img = frame[y_min:y_max, x_min:x_max]
-                        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-                        img = cv2.resize(img, (224, 224))
-                        face_imgs.append(img)
-                        bboxes.append(box)
-
-                    # Predict gaze
-                    t1 = time.time()
-                    pitch, yaw = self.predict_gaze(np.stack(face_imgs))
-                    t2 = time.time()
-                    # print(f'predict_gaze time:{t2 - t1}s pitch:{pitch} yaw:{yaw}')
-
-                else:
-
-                    pitch = np.empty((0, 1))
-                    yaw = np.empty((0, 1))
-
-            else:
-                pitch, yaw = self.predict_gaze(frame)
-
-            t4 = time.time()
-
-            # print(f'step time:{t4 - t3}s\n')
-            # Save data
-            bboxes = np.stack(bboxes)
+            pitch, yaw = self.predict_gaze(frame)
             results = IntegratedGazeResultContainer(
                 pitch=pitch,
                 yaw=yaw,
-                bboxes=bboxes,
             )
-            # print(type(bboxes),type(results.bboxes))
-            self.step_results = results
             return results
         
     def model_inference(self,img):
@@ -517,34 +461,23 @@ class IntegratedRegressionMediaPipeline:
         pos = self.kalman_filter.smooth_position(pos)
         return pos
 
-    def get_points_numpy_with_mediapipe_from_image(self, image):
+    def get_result_mediapipe_from_image(self, image):
         mp_image = mp.Image(image_format=mp.ImageFormat.SRGB, data=image)
         mode = self.mode
         t1 = time.time()
         if mode == 'video':
             face_landmarker_result = self.mediapipe.detect_for_video(mp_image, self.milliseconds)
+            self.mp_result=face_landmarker_result
         elif mode == 'image':
             face_landmarker_result = self.mediapipe.detect(mp_image)
+            self.mp_result=face_landmarker_result
         elif mode == 'stream':
             # print(f'milliseconds_list:{self.milliseconds_list}')
             self.mediapipe.detect_async(mp_image, self.milliseconds)
-            face_landmarker_result = self.mp_result
+            face_landmarker_result=self.mp_result
         else:
             raise NotImplementedError
-        t2 = time.time()
-        # mediapipe 在CPU上运行时间大概0.012s
-        if face_landmarker_result is None:
-            return None
-        face_landmarker_result = get_all_landmark_from_result(result=face_landmarker_result)
-        t3 = time.time()
-        self.face_boxes = self.get_face_box_xxyy(face_landmarker_result)
-        t4 = time.time()
         self.orig_head_angles_update()
-        # print(f''
-        #       f'mediapipe detect:{t2 - t1}'
-        #       f'get_all_landmark_from_result:{t3 - t2}'
-        #       f'get_face_box_xxyy:{t4 - t3}'
-        #       f'')
         return face_landmarker_result
 
     def get_face_box_xxyy(self, face_landmarker_result):
@@ -697,27 +630,6 @@ class IntegratedRegressionMediaPipeline:
         if points_with_poor_data:
             print(f"Points with poor data: {points_with_poor_data}")
         
-        # 检查是否有足够的总体数据
-        min_required_total = len(calibration_points) * every_point_has_n_images * 0.3  # 至少30%的预期数据
-        
-        if total_valid_photos < min_required_total:
-            error_msg = f"Insufficient overall data collected!\n"
-            error_msg += f"Got {total_valid_photos} photos, need at least {int(min_required_total)}\n"
-            error_msg += f"Please retry calibration with better conditions."
-            print(f"ERROR: {error_msg}")
-            self.show_calibration_failure(error_msg)
-            return None
-        
-        if len(points_with_no_data) > len(calibration_points) * 0.2:  # 超过20%的点没有数据
-            error_msg = f"Too many points failed to collect data!\n"
-            error_msg += f"{len(points_with_no_data)} out of {len(calibration_points)} points have no data\n"
-            error_msg += f"Please retry calibration."
-            print(f"ERROR: {error_msg}")
-            self.show_calibration_failure(error_msg)
-            return None
-        
-        print("="*50)
-        
         # 完成校准处理
         return self.finish_calibration(path1, test_mode, tested_true_points, tested_pred_points)
 
@@ -764,555 +676,136 @@ class IntegratedRegressionMediaPipeline:
         cv2.imshow(self.window_name, img)
         cv2.waitKey(instruction_duration)
 
+    def shrink_point(self,screen_height, screen_width, point,duration,start_ratio=0.5,end_ratio=0.01):
+        fps=20
+        duration_frames=duration*fps
+        for i in range(duration_frames):
+            img = np.zeros((screen_height, screen_width, 3), np.uint8) + 225
+            ratio = start_ratio + (end_ratio - start_ratio) * i / duration_frames
+            point_size = int(screen_width * ratio)
+            cv2.circle(img, point, point_size, (0, 255, 0), -1)  # 绿色目标点
+            cv2.imshow(self.window_name, img)
+            cv2.waitKey(int(100/fps))
+
+
     def calibrate_single_point_dynamic(self, cap: cv2.VideoCapture, point, point_idx, total_points, path1, test_mode=False):
-        """校准单个点的动态效果"""
+        """校准单个点 - 简化版本"""
         screen_width, screen_height = self.screen_size
         every_point_has_n_images = self.every_point_has_n_images
         images_freq = self.images_freq
-        base_radius = self.radius
         
         point_data = []
-        valid_photos_taken = 0  # 只计算有效照片
-        attempted_photos = 0  # 总尝试次数
-        total_photos = every_point_has_n_images  # 每个点需要的总照片数
+        valid_photos_taken = 0
         
-        # 动态效果参数（缩短时间）
-        animation_duration = 1.0  # 缩短进入动画到1秒
-        shrink_threshold = 0.7  # 当注视稳定性达到这个阈值时开始缩小
-        explosion_threshold = 0.9  # 当注视稳定性达到这个阈值时爆炸
-        
-        start_time = time.time()
-        gaze_stability = 0.0  # 注视稳定性 (0-1)
-        last_valid_gaze = None
-        stability_buffer = []  # 用于计算稳定性的缓冲区
-        exploded = False
-        
-        # 数据质量相关
-        quality_scores = []  # 存储每张照片的质量分数
-        current_data_quality = 0.0  # 当前数据质量 (0-1)
-        
-        # 眼睛状态检测
-        eyes_closed = False
-        eye_closure_start_time = None
-        min_eye_open_duration = 0.5  # 眼睛需要持续张开0.5秒才开始收集数据
-        
-        # 动画阶段：0=进入, 1=等待注视, 2=收缩, 3=爆炸, 4=完成
-        animation_phase = 0
-        explosion_start_time = 0
-        
-        # 最大尝试次数限制，避免死循环
-        max_attempts = every_point_has_n_images * 5  # 增加尝试次数，因为现在会暂停收集
-        
-        while valid_photos_taken < every_point_has_n_images and attempted_photos < max_attempts:
-            current_time = time.time()
-            elapsed_time = current_time - start_time
-            
-            # 检查退出条件 - 在每次循环开始时检查
+        print(f"开始校准点 {point_idx + 1}/{total_points}: {point}")
+        self.shrink_point(screen_height, screen_width, point, 1)
+        while valid_photos_taken < every_point_has_n_images:
+            # 检查退出条件
             if keyboard.is_pressed('esc') and keyboard.is_pressed('q'):
                 print("\n用户按下 ESC+Q，退出校准...")
                 self.quit = True
-                return point_data  # 返回已收集的数据
+                return point_data
             
             # 创建背景
-            img = np.zeros((screen_height, screen_width, 3), np.uint8)+225
+            img = np.zeros((screen_height, screen_width, 3), np.uint8) + 225
             
-            # 检查眼睛状态
+            # 1. 先检测眼睛状态
+            if self.check_eyes_closed():
+                # 眼睛闭合，显示提示并跳过
+                cv2.circle(img, point, 50, (0, 0, 255), 3)
+                cv2.putText(img, "EYES CLOSED - PLEASE OPEN EYES", (50, 100), 
+                           cv2.FONT_HERSHEY_SIMPLEX, 1, (0, 0, 255), 2)
+                cv2.imshow(self.window_name, img)
+                cv2.waitKey(30)
+                continue
+            
+            # 2. 眼睛张开，获取数据并保存
             try:
                 results = self.get_results_from_capture(cap)
-                if results is not None:
-                    results_dict = self.results_to_data_dict(results)
-                    
-                    # 使用MediaPipe blendshapes进行眼睛闭合检测
-                    eye_blink_left = 0.0
-                    eye_blink_right = 0.0
-                    
-                    if hasattr(self, 'mp_result') and self.mp_result and hasattr(self.mp_result, 'face_blendshapes'):
-                        face_blendshapes = self.mp_result.face_blendshapes
-                        if len(face_blendshapes) > 0:
-                            face_blendshapes = face_blendshapes[0]
-                            face_blendshapes_names = [category.category_name for category in face_blendshapes]
-                            face_blendshapes_scores = [category.score for category in face_blendshapes]
-                            blendshapes_dict = dict(zip(face_blendshapes_names, face_blendshapes_scores))
-                            
-                            eye_blink_left = blendshapes_dict.get('eyeBlinkLeft', 0.0)
-                            eye_blink_right = blendshapes_dict.get('eyeBlinkRight', 0.0)
-                    
-                    # 眼睛闭合检测 - 使用blendshapes阈值
-                    eye_closure_threshold = self.eye_blink_threshold  # 使用配置的阈值 - 只在严重闭眼时拒绝
-                    max_eye_blink = max(eye_blink_left, eye_blink_right)
-                    current_eyes_closed = max_eye_blink > eye_closure_threshold
-                    
-                    # 输出详细的眼睛状态调试信息
-                    if current_eyes_closed != eyes_closed:
-                        eyes_closed = current_eyes_closed
-                        if eyes_closed:
-                            eye_closure_start_time = current_time
-                            print(f"  *** 眼睛闭合/眯眼检测 (Blendshapes: L={eye_blink_left:.3f}, R={eye_blink_right:.3f}, Max={max_eye_blink:.3f}) - 暂停数据收集 ***")
-                        else:
-                            eye_closure_start_time = None
-                            print(f"  *** 眼睛睁开检测 (Blendshapes: L={eye_blink_left:.3f}, R={eye_blink_right:.3f}, Max={max_eye_blink:.3f}) - 等待{min_eye_open_duration}s后恢复收集 ***")
-                    
-                    # 输出实时blendshapes值以便调试
-                    if current_time - start_time > 2:  # 2秒后开始输出，避免初期噪音
-                        print(f"  实时Blendshapes: L={eye_blink_left:.3f}, R={eye_blink_right:.3f}, Max={max_eye_blink:.3f} - {'闭合' if current_eyes_closed else '睁开'}")
-                    
-                    # 检查眼睛是否持续张开足够长时间
-                    eyes_ready_for_collection = (not eyes_closed and 
-                                               (eye_closure_start_time is None or 
-                                                current_time - eye_closure_start_time > min_eye_open_duration))
-                else:
-                    eyes_ready_for_collection = False
-                    print("  无法获取结果，暂停数据收集")
-                    
-            except Exception as e:
-                print(f"Error checking eye state: {e}")
-                eyes_ready_for_collection = False  # 检测失败时停止收集，更安全
-            
-            # 获取当前视线信息（只有在眼睛张开时才有效）
-            current_gaze = None
-            if eyes_ready_for_collection:
-                current_gaze = self.get_current_gaze_position(cap)
-            
-            # 更新注视稳定性（只有在眼睛张开时）
-            if eyes_ready_for_collection:
-                gaze_stability = self.update_gaze_stability(
-                    current_gaze, point, stability_buffer, last_valid_gaze
-                )
-                if current_gaze is not None:
-                    last_valid_gaze = current_gaze
-            else:
-                # 眼睛闭合时，重置稳定性
-                gaze_stability = 0.0
-                stability_buffer.clear()
-            
-            # 更新动画阶段（只有在眼睛张开时才推进）
-            if eyes_ready_for_collection:
-                if animation_phase == 0 and elapsed_time > animation_duration:
-                    animation_phase = 1
-                elif animation_phase == 1 and gaze_stability > shrink_threshold:
-                    animation_phase = 2
-                elif animation_phase == 2 and gaze_stability > explosion_threshold:
-                    animation_phase = 3
-                    explosion_start_time = current_time
-                elif animation_phase == 3 and current_time - explosion_start_time > 0.5:
-                    animation_phase = 4
-                    exploded = True
-            
-            # 绘制校准点（根据眼睛状态调整颜色）
-            display_quality = current_data_quality if eyes_ready_for_collection else 0.0
-            self.draw_dynamic_calibration_point(
-                img, point, base_radius, animation_phase, 
-                elapsed_time, gaze_stability, current_time - explosion_start_time if animation_phase == 3 else 0,
-                display_quality
-            )
-            
-            # 绘制眼睛状态指示
-            if eyes_closed:
-                status_text = "*** EYES CLOSED/SQUINTING - DATA COLLECTION PAUSED ***"
-                status_color = (0, 0, 255)  # 红色
-            elif not eyes_ready_for_collection:
-                remaining_time = min_eye_open_duration - (current_time - eye_closure_start_time) if eye_closure_start_time else 0
-                status_text = f"Eyes Opening - Wait {remaining_time:.1f}s Before Collecting"
-                status_color = (0, 165, 255)  # 橙色
-            else:
-                status_text = "Eyes Ready - COLLECTING DATA"
-                status_color = (0, 255, 0)  # 绿色
-            
-            cv2.putText(img, status_text, (50, 250), cv2.FONT_HERSHEY_SIMPLEX, 0.8, status_color, 2)
-            
-            # 显示实时blendshapes值（改进眨眼检测显示）
-            if 'max_eye_blink' in locals():
-                # 使用新的详细眨眼检测显示函数
-                next_y = self.draw_eye_blink_status(img, y_start=330)
-            
-            # 显示实时质量评估信息（调整位置避免重叠）
-            try:
-                if 'results' in locals() and results is not None:
-                    # 获取最新的质量评估
-                    temp_results_dict = self.results_to_data_dict(results)
-                    temp_quality_score, temp_debug_info, temp_detailed_scores = self.evaluate_data_quality(temp_results_dict, point, current_gaze)
-                    
-                    # 显示详细质量状态
-                    quality_y = 330
-                    quality_x = 400  # 移到右侧显示，避免与眨眼检测重叠
-                    quality_header = f"Quality Gates (ALL must pass to collect):"
-                    cv2.putText(img, quality_header, (quality_x, quality_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-                    
-                    quality_y += 25
-                    # 人脸检测状态
-                    face_status = "PASS" if temp_detailed_scores['face_detected'] else "FAIL"
-                    face_color = (0, 255, 0) if temp_detailed_scores['face_detected'] else (0, 0, 255)
-                    face_text = f"  Face Detected: {face_status}"
-                    cv2.putText(img, face_text, (quality_x, quality_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, face_color, 1)
-                    
-                    quality_y += 20
-                    # 眼睛状态
-                    eyes_status = "PASS" if temp_detailed_scores['eyes_open'] else "FAIL"
-                    eyes_color = (0, 255, 0) if temp_detailed_scores['eyes_open'] else (0, 0, 255)
-                    eyes_text = f"  Eyes Acceptable: {eyes_status}"
-                    cv2.putText(img, eyes_text, (quality_x, quality_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, eyes_color, 1)
-                    
-                    quality_y += 20
-                    # 图像状态
-                    image_status = "PASS" if temp_detailed_scores['image_available'] else "FAIL"
-                    image_color = (0, 255, 0) if temp_detailed_scores['image_available'] else (0, 0, 255)
-                    image_text = f"  Image Available: {image_status}"
-                    cv2.putText(img, image_text, (quality_x, quality_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, image_color, 1)
-                    
-                    quality_y += 25
-                    # 总体状态
-                    overall_status = "READY TO COLLECT" if temp_detailed_scores['overall_pass'] else "NOT READY"
-                    overall_color = (0, 255, 0) if temp_detailed_scores['overall_pass'] else (0, 0, 255)
-                    cv2.putText(img, overall_status, (quality_x, quality_y), cv2.FONT_HERSHEY_SIMPLEX, 0.7, overall_color, 2)
-                    
-                    quality_y += 20
-                    if temp_detailed_scores['overall_pass']:
-                        score_text = f"Quality Score: {temp_detailed_scores['final_score']:.3f}"
-                        cv2.putText(img, score_text, (quality_x, quality_y), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 1)
-                    
-            except Exception as e:
-                # 如果质量评估失败，显示错误信息
-                error_text = f"Quality evaluation error: {str(e)[:50]}"
-                cv2.putText(img, error_text, (50, 330), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
-            
-            # 绘制退出提示（调整位置避免与质量信息重叠）
-            exit_text = "Press ESC+Q to quit calibration"
-            cv2.putText(img, exit_text, (50, screen_height - 50), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-            
-            # 绘制进度信息（移除右下角图例）
-            self.draw_calibration_progress_simple(
-                img, point_idx, total_points, valid_photos_taken, every_point_has_n_images, 
-                gaze_stability, current_data_quality, attempted_photos
-            )
-            
-            # 如果已有训练数据，显示预测的凝视点
-            predicted_gaze = None
-            if point_idx > 0 and len(self.data_list) > 5 and hasattr(self, 'regression_model'):  # 至少有一些数据后才开始预测
-                try:
-                    # 获取当前帧的预测结果
-                    current_results = self.get_results_from_capture(cap)
-                    if current_results is not None:
-                        current_results_dict = self.results_to_data_dict(current_results)
+                if results is None:
+                    continue
+                
+                results_dict = self.results_to_data_dict(results)
+                
+                # 保存图像和数据
+                image_path = path1 + f'images/{point_idx}_{valid_photos_taken}.png'
+                os.makedirs(os.path.dirname(image_path), exist_ok=True)
+                cv2.imwrite(image_path, self.frame)
+                
+                results_dict['target_point'] = point
+                results_dict['label'] = point
+                results_dict['image_path'] = image_path
+                self.data_list.append(results_dict.copy())
+                point_data.append(results_dict.copy())
+                valid_photos_taken += 1
+                
+                print(f"收集数据: {valid_photos_taken}/{every_point_has_n_images}")
+                
+                # 增量训练
+                if len(self.data_list) % 5 == 0:
+                    try:
+                        self.train_regression()
+                        print(f"模型训练更新: {len(self.data_list)} 样本")
+                    except Exception as e:
+                        print(f"训练失败: {e}")
+                
+                # 5. 显示预测结果（如果有模型）
+                if point_idx > 0 and hasattr(self, 'regression_model') and self.regression_model:
+                    try:
                         predicted_position = self.regression_model.predict(
-                            X=self.data_dict_list_preparation_for_training_and_evaluation([current_results_dict])
+                            X=self.data_dict_list_preparation_for_training_and_evaluation([results_dict])
                         )
                         if predicted_position is not None and len(predicted_position) > 0:
-                            predicted_gaze = predicted_position[0]
-                            # 在图像上显示预测点
-                            pred_x, pred_y = int(predicted_gaze[0]), int(predicted_gaze[1])
-                            # 确保预测点在屏幕范围内
+                            pred_x, pred_y = int(predicted_position[0][0]), int(predicted_position[0][1])
                             pred_x = max(0, min(screen_width - 1, pred_x))
                             pred_y = max(0, min(screen_height - 1, pred_y))
                             
-                            # 绘制预测点 (红色圆圈)
-                            cv2.circle(img, (pred_x, pred_y), 10, (0, 0, 255), 2)
-                            cv2.putText(img, "Predicted", (pred_x + 15, pred_y), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 0, 255), 1)
+                            # 绘制预测点
+                            cv2.circle(img, (pred_x, pred_y), 2, (0, 50, 50), -1)
+                            cv2.putText(img, "Predicted", (pred_x + 15, pred_y), 
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.5,  (0, 50, 50), 1)
                             
-                            # 显示预测和目标的距离
+                            # 显示误差
                             distance = np.sqrt((pred_x - point[0])**2 + (pred_y - point[1])**2)
-                            cv2.putText(img, f"Error: {distance:.1f}px", (pred_x + 15, pred_y + 20), cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 0, 255), 1)
-                            
-                except Exception as e:
-                    print(f"Prediction error during calibration: {e}")
+                            cv2.putText(img, f"Error: {distance:.1f}px", (pred_x + 15, pred_y + 20), 
+                                       cv2.FONT_HERSHEY_SIMPLEX, 0.4, (0, 50, 50), 1)
+                    except Exception as e:
+                        print(f"预测错误: {e}")
+                
+                time.sleep(1.0 / images_freq)  # 控制采样频率
+                
+            except Exception as e:
+                print(f"数据收集错误: {e}")
+                continue
             
-            # 显示图像
+            # 6. 绘制界面
+            # 绘制目标点
+            point_size=np.random.randint(20, 40)
+            cv2.circle(img, point, point_size, (0, 255, 0), -1)  # 绿色目标点
+            
+            # 显示进度
+            progress_text = f"Point {point_idx + 1}/{total_points}: {valid_photos_taken}/{every_point_has_n_images}"
+            cv2.putText(img, progress_text, (50, 50), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+            
+            # 显示状态
+            status_text = "COLLECTING DATA - Eyes Open"
+            cv2.putText(img, status_text, (50, 150), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 255, 0), 2)
+            
+            # 退出提示
+            cv2.putText(img, "Press ESC+Q to quit", (50, screen_height - 50), 
+                       cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
+            
             cv2.imshow(self.window_name, img)
-            key = cv2.waitKey(30)  # 约30fps，获取键盘输入
+            key = cv2.waitKey(30)
             
-            # 检查退出按键（备用检测）
             if key == 27:  # ESC键
                 print("\n用户按下 ESC 键，退出校准...")
                 self.quit = True
                 return point_data
-            
-            # 收集校准数据（只有在眼睛准备好且动画阶段适当时）
-            if (eyes_ready_for_collection and animation_phase >= 1 and 
-                valid_photos_taken < every_point_has_n_images):
-                
-                print(f"[DEBUG] Entering data collection loop...")
-                print(f"[DEBUG] eyes_ready_for_collection: {eyes_ready_for_collection}")
-                print(f"[DEBUG] animation_phase: {animation_phase}")
-                print(f"[DEBUG] valid_photos_taken: {valid_photos_taken} < {every_point_has_n_images}")
-                
-                try:
-                    attempted_photos += 1
-                    print(f"[DEBUG] Attempt #{attempted_photos}")
-                    
-                    # 重新获取最新的结果
-                    results = self.get_results_from_capture(cap)
-                    if results is not None:
-                        print(f"[DEBUG] Got results from capture")
-                        results_dict = self.results_to_data_dict(results)
-                        print(f"[DEBUG] Converted results to dict")
-                        
-                        # *** 最后一层眼睛状态安全检查 - 使用blendshapes防止眯眼数据混入 ***
-                        final_eye_blink_left = 0.0
-                        final_eye_blink_right = 0.0
-                        
-                        if hasattr(self, 'mp_result') and self.mp_result and hasattr(self.mp_result, 'face_blendshapes'):
-                            face_blendshapes = self.mp_result.face_blendshapes
-                            if len(face_blendshapes) > 0:
-                                face_blendshapes = face_blendshapes[0]
-                                face_blendshapes_names = [category.category_name for category in face_blendshapes]
-                                face_blendshapes_scores = [category.score for category in face_blendshapes]
-                                blendshapes_dict = dict(zip(face_blendshapes_names, face_blendshapes_scores))
-                                
-                                final_eye_blink_left = blendshapes_dict.get('eyeBlinkLeft', 0.0)
-                                final_eye_blink_right = blendshapes_dict.get('eyeBlinkRight', 0.0)
-                        
-                        final_max_eye_blink = max(final_eye_blink_left, final_eye_blink_right)
-                        
-                        # 使用与质量评估相同的阈值进行最终检查
-                        if final_max_eye_blink > self.eye_blink_threshold:  # 使用配置的阈值
-                            print(f"  *** 最后安全检查：眼睛严重闭合 (Blendshapes: L={final_eye_blink_left:.3f}, R={final_eye_blink_right:.3f}, Max={final_max_eye_blink:.3f}) - 跳过数据收集 ***")
-                            continue
-                        
-                        # 评估数据质量
-                        quality_score, debug_info, detailed_scores = self.evaluate_data_quality(results_dict, point, current_gaze)
-                        
-                        # 更新最新的质量信息用于显示
-                        latest_quality_score = quality_score
-                        latest_debug_info = debug_info
-                        latest_detailed_scores = detailed_scores
-                        
-                        print(f"[DEBUG] Quality evaluation result: {quality_score:.3f}")
-                        print(f"[DEBUG] Overall pass: {detailed_scores.get('overall_pass', False)}")
-                        for info in debug_info:
-                            print(f"[DEBUG] {info}")
-                        
-                        # 门槛式检查：只有所有必要条件都通过才记录数据
-                        if detailed_scores.get('overall_pass', False) and quality_score > 0.0:
-                            # 在记录数据前进行最后一次眼睛状态检查
-                            final_eye_check = True
-                            if hasattr(self, 'mp_result') and self.mp_result and hasattr(self.mp_result, 'face_blendshapes'):
-                                face_blendshapes = self.mp_result.face_blendshapes
-                                if len(face_blendshapes) > 0:
-                                    face_blendshapes = face_blendshapes[0]
-                                    face_blendshapes_names = [category.category_name for category in face_blendshapes]
-                                    face_blendshapes_scores = [category.score for category in face_blendshapes]
-                                    blendshapes_dict = dict(zip(face_blendshapes_names, face_blendshapes_scores))
-                                    
-                                    eye_blink_left = blendshapes_dict.get('eyeBlinkLeft', 0.0)
-                                    eye_blink_right = blendshapes_dict.get('eyeBlinkRight', 0.0)
-                                    max_eye_blink = max(eye_blink_left, eye_blink_right)
-                                    
-                                    # 最终安全检查：确保眼睛没有严重闭合
-                                    eye_closure_threshold = self.eye_blink_threshold  # 使用配置的阈值
-                                    if max_eye_blink > eye_closure_threshold:
-                                        final_eye_check = False
-                                        print(f"[DEBUG] Final eye check failed: max_blink={max_eye_blink:.3f} > {eye_closure_threshold}")
-                            
-                            print(f"[DEBUG] Final eye check result: {final_eye_check}")
-                            print(f"[DEBUG] About to save data...")
-                            
-                            if final_eye_check:
-                                # 保存图像文件
-                                image_path = path1 + f'images/{point_idx}_{valid_photos_taken}.png'
-                                os.makedirs(os.path.dirname(image_path), exist_ok=True)
-                                cv2.imwrite(image_path, self.frame)
-                                
-                                # 保存数据
-                                results_dict['quality_score'] = quality_score
-                                results_dict['target_point'] = point
-                                results_dict['gaze_position'] = current_gaze
-                                results_dict['label'] = point  # 训练验证需要的label字段
-                                results_dict['image_path'] = image_path  # 图像路径
-                                self.data_list.append(results_dict.copy())
-                                point_data.append(results_dict.copy())  # Add to point_data as well
-                                quality_scores.append(quality_score)  # Add to quality_scores list
-                                valid_photos_taken += 1
-                                
-                                print(f"[SUCCESS] Data collected! Photos: {valid_photos_taken}/{total_photos}, Quality: {quality_score:.3f}")
-                                
-                                # 增量训练：每收集几个数据点后重新训练模型
-                                if len(self.data_list) % 5 == 0 and len(self.data_list) > 0:
-                                    try:
-                                        print(f"[TRAINING] Incremental training with {len(self.data_list)} samples...")
-                                        self.train_regression()
-                                        print(f"[TRAINING] Model updated successfully")
-                                    except Exception as e:
-                                        print(f"[TRAINING] Warning: Incremental training failed: {e}")
-                                
-                                # 成功收集数据的视觉反馈
-                                explosion_start_time = time.time()
-                                animation_phase = 3  # 爆炸效果
-                            else:
-                                print(f"[DEBUG] Final eye check failed, data not saved")
-                        else:
-                            print(f"[DEBUG] Quality gates failed, data not saved")
-                            print(f"[DEBUG] Overall pass: {detailed_scores.get('overall_pass', False)}")
-                            print(f"[DEBUG] Quality score: {quality_score}")
-                            
-                        attempted_photos += 1
-                        
-                        # 更新当前数据质量（所有已保存照片的平均质量）
-                        if quality_scores:
-                            current_data_quality = np.mean(quality_scores)
-                        
-                        time.sleep(1.0 / images_freq)  # 控制采样频率
-                        
-                except Exception as e:
-                    print(f"Error capturing data: {e}")
-                    continue
         
-        print(f"Point {point_idx + 1} completed: {valid_photos_taken} valid photos from {attempted_photos} attempts")
-        
-        # 检查是否收集到足够的数据
-        if valid_photos_taken == 0:
-            print(f"WARNING: No valid photos collected for point {point_idx + 1}!")
-            print("This may be due to poor lighting, eye closure, or extreme head poses.")
-            print("Consider adjusting your setup or trying again.")
-        elif valid_photos_taken < every_point_has_n_images * 0.3:  # 少于30%的预期数据
-            print(f"WARNING: Very few photos collected for point {point_idx + 1} ({valid_photos_taken}/{every_point_has_n_images})")
-            print("This may affect calibration quality. Consider retrying this point.")
-        elif attempted_photos >= max_attempts:
-            print(f"WARNING: Reached maximum attempts for point {point_idx + 1}")
-            print(f"Only collected {valid_photos_taken}/{every_point_has_n_images} photos with sufficient quality.")
-            print("You may want to improve lighting conditions or head position.")
-        
+        print(f"点 {point_idx + 1} 完成: {valid_photos_taken} 张有效照片")
         return point_data
 
-    def evaluate_data_quality(self, results_dict, target_point, current_gaze):
-        """
-        Evaluate the quality of data for calibration based on multiple factors.
-        Returns quality score (0.0 - 1.0), debug information, and detailed scores.
-        Uses "gating" logic - each criteria must pass individually.
-        """
-        debug_info = []
-        detailed_scores = {
-            'face_detected': False,
-            'eyes_open': False,
-            'image_available': False,
-            'overall_pass': False,
-            'final_score': 0.0
-        }
-        
-        try:
-            print(f"[DEBUG] Starting quality evaluation with gating logic")
-            
-            # Extract face landmarks and other data
-            # The results_dict contains 'mediapipe_results', not separate 'face_landmarks' 
-            mediapipe_results = results_dict.get('mediapipe_results')
-            face_landmarks = mediapipe_results  # Use mediapipe_results as face_landmarks
-            iris_landmarks = results_dict.get('iris_landmarks') 
-            # For image availability, check if we have current frame
-            image = hasattr(self, 'frame') and self.frame is not None
-            
-            print(f"[DEBUG] Mediapipe results type: {type(mediapipe_results)}")
-            print(f"[DEBUG] Mediapipe results length: {len(mediapipe_results) if mediapipe_results else 'None'}")
-            print(f"[DEBUG] Image available: {image}")
-            
-            # ===== 必要条件1: 人脸检测 =====
-            face_detected = False
-            if (mediapipe_results is not None and 
-                ((isinstance(mediapipe_results, list) and len(mediapipe_results) > 0) or
-                 (isinstance(mediapipe_results, np.ndarray) and mediapipe_results.size > 0))):
-                face_detected = True
-                debug_info.append("✓ Face landmarks detected")
-                print(f"[DEBUG] ✓ Face landmarks detected")
-            
-            # 备用检测：通过blendshapes检测人脸
-            if not face_detected and hasattr(self, 'mp_result') and self.mp_result:
-                if hasattr(self.mp_result, 'face_blendshapes') and self.mp_result.face_blendshapes:
-                    if len(self.mp_result.face_blendshapes) > 0:
-                        face_detected = True
-                        debug_info.append("✓ Face detected via blendshapes")
-                        print(f"[DEBUG] ✓ Face detected via blendshapes")
-            
-            detailed_scores['face_detected'] = face_detected
-            
-            if not face_detected:
-                debug_info.append("✗ FAILED: No face detected")
-                print(f"[DEBUG] ✗ FAILED: No face detected")
-                detailed_scores['overall_pass'] = False
-                detailed_scores['final_score'] = 0.0
-                return 0.0, debug_info, detailed_scores
-            
-            # ===== 必要条件2: 眼睛状态检查 =====
-            eyes_acceptable = True  # 默认通过，除非检测到严重问题
-            eye_blink_left = 0.0
-            eye_blink_right = 0.0
-            
-            if hasattr(self, 'mp_result') and self.mp_result and hasattr(self.mp_result, 'face_blendshapes'):
-                face_blendshapes = self.mp_result.face_blendshapes
-                if len(face_blendshapes) > 0:
-                    face_blendshapes = face_blendshapes[0]
-                    face_blendshapes_names = [category.category_name for category in face_blendshapes]
-                    face_blendshapes_scores = [category.score for category in face_blendshapes]
-                    blendshapes_dict = dict(zip(face_blendshapes_names, face_blendshapes_scores))
-                    
-                    eye_blink_left = blendshapes_dict.get('eyeBlinkLeft', 0.0)
-                    eye_blink_right = blendshapes_dict.get('eyeBlinkRight', 0.0)
-                    
-                    # 眨眼检测阈值
-                    eye_closure_threshold = self.eye_blink_threshold  # 使用配置的阈值
-                    max_eye_blink = max(eye_blink_left, eye_blink_right)
-                    
-                    print(f"[DEBUG] Eye blink values: L={eye_blink_left:.3f}, R={eye_blink_right:.3f}, Max={max_eye_blink:.3f}, Threshold={eye_closure_threshold}")
-                    
-                    if max_eye_blink > eye_closure_threshold:
-                        eyes_acceptable = False
-                        debug_info.append(f"✗ FAILED: Eyes closed (max: {max_eye_blink:.3f} > {eye_closure_threshold})")
-                        print(f"[DEBUG] ✗ FAILED: Eyes closed")
-                    else:
-                        # 简单的睁眼/闭眼状态
-                        eye_status = "open" if max_eye_blink <= eye_closure_threshold else "closed"
-                        debug_info.append(f"✓ Eyes {eye_status} (max blink: {max_eye_blink:.3f})")
-                        print(f"[DEBUG] ✓ Eyes {eye_status}")
-            else:
-                # 如果没有blendshapes数据，默认通过但给出警告
-                debug_info.append("⚠ Eyes status: No blendshapes data, assuming OK")
-                print(f"[DEBUG] ⚠ Eyes: No blendshapes, assuming OK")
-            
-            detailed_scores['eyes_open'] = eyes_acceptable
-            
-            if not eyes_acceptable:
-                detailed_scores['overall_pass'] = False
-                detailed_scores['final_score'] = 0.0
-                return 0.0, debug_info, detailed_scores
-            
-            # ===== 必要条件3: 图像可用性 =====
-            image_ok = image  # image is now a boolean
-            detailed_scores['image_available'] = image_ok
-            
-            if image_ok:
-                debug_info.append("✓ Image available")
-                print(f"[DEBUG] ✓ Image available")
-            else:
-                debug_info.append("✗ FAILED: No image data")
-                print(f"[DEBUG] ✗ FAILED: No image data")
-                detailed_scores['overall_pass'] = False
-                detailed_scores['final_score'] = 0.0
-                return 0.0, debug_info, detailed_scores
-            
-            # ===== 所有必要条件都通过，计算质量分数 =====
-            detailed_scores['overall_pass'] = True
-            
-            # 基础分数：所有必要条件都满足
-            quality_score = 0.60
-            
-            # 额外质量评估
-            if face_detected and eyes_acceptable:
-                quality_score += 0.20  # 人脸和眼睛都很好
-            
-            if image_ok:
-                quality_score += 0.20  # 图像质量加分
-            
-            quality_score = min(quality_score, 1.0)
-            detailed_scores['final_score'] = quality_score
-            
-            debug_info.append(f"✓ ALL CHECKS PASSED - Final score: {quality_score:.3f}")
-            print(f"[DEBUG] ✓ ALL CHECKS PASSED - Final score: {quality_score:.3f}")
-            
-            return quality_score, debug_info, detailed_scores
-            
-        except Exception as e:
-            debug_info.append(f"✗ FAILED: Quality evaluation error: {str(e)}")
-            print(f"[DEBUG] ✗ FAILED: Exception in quality evaluation: {e}")
-            detailed_scores['overall_pass'] = False
-            detailed_scores['final_score'] = 0.0
-            return 0.0, debug_info, detailed_scores
-    
     def calculate_eye_aspect_ratio(self, eye_points):
         """
         计算眼睛纵横比 (Eye Aspect Ratio - EAR)
@@ -1569,19 +1062,32 @@ class IntegratedRegressionMediaPipeline:
         with open(path1 + 'error_statistics.json', 'w') as f:
             json.dump(error_stats, f, indent=4)
 
-    def get_current_gaze_position(self, cap):
-        """获取当前注视位置"""
-        try:
-            results = self.get_results_from_capture(cap)
-            if results is not None and self.is_model_fitted():
-                results_dict = self.results_to_data_dict(results)
-                predicted_position = self.regression_model.predict(
-                    X=self.data_dict_list_preparation_for_training_and_evaluation([results_dict])
-                )[0]
-                return predicted_position
-        except:
-            pass
-        return None
+
+    def check_eyes_closed(self):
+        """检测眼睛是否闭合 - 使用已有的mp_result"""
+        return False
+        # try:
+        #     # 直接使用live_stream_mp_callback更新的mp_result
+        #     if not hasattr(self, 'mp_result') or not self.mp_result:
+        #         return True  # 没有MediaPipe结果时认为眼睛闭合
+            
+        #     if hasattr(self.mp_result, 'face_blendshapes') and self.mp_result.face_blendshapes:
+        #         face_blendshapes = self.mp_result.face_blendshapes[0]
+        #         face_blendshapes_names = [category.category_name for category in face_blendshapes]
+        #         face_blendshapes_scores = [category.score for category in face_blendshapes]
+        #         blendshapes_dict = dict(zip(face_blendshapes_names, face_blendshapes_scores))
+                
+        #         eye_blink_left = blendshapes_dict.get('eyeBlinkLeft', 0.0)
+        #         eye_blink_right = blendshapes_dict.get('eyeBlinkRight', 0.0)
+        #         max_eye_blink = max(eye_blink_left, eye_blink_right)
+                
+        #         return max_eye_blink > self.eye_blink_threshold
+            
+        #     return False  # 无法检测时认为眼睛闭合
+            
+        # except Exception as e:
+        #     print(f"Eye detection error: {e}")
+        #     return True  # 检测失败时认为眼睛闭合
 
     def update_gaze_stability(self, current_gaze, target_point, stability_buffer, last_valid_gaze):
         """更新注视稳定性"""
@@ -1617,15 +1123,11 @@ class IntegratedRegressionMediaPipeline:
         yaw = results.yaw.tolist()[0]
         # 不知道为什么这个bboxes就会变成list，就是step传出来之后就有概率变成list。
         # 我难评了，直接加个条件判断解决
-        results.bboxes = np.array(results.bboxes)
 
-        box = results.bboxes.tolist()[0]
-        box = [box[0] / screen_width, box[1] / screen_width, box[2] / screen_height,
-               box[3] / screen_height, ]
         return {
             'pitch': pitch,
             'yaw': yaw,
-            'box': box,
+            'box': results.bboxes[0],
             'mediapipe_results': results.landmarks[0].tolist(),
             'head_angles': results.head_angles.tolist(),
         }
@@ -1665,48 +1167,69 @@ class IntegratedRegressionMediaPipeline:
         while 1:
             t00 = time.time()
             self.cap_read_img(cap)
-            # Thread(target=self.cap_read_img, args=(cap,)).start()
             frame = self.frame
             if frame is None:
                 continue
+            if self.frame_size is None:
+                self.frame_size = frame.shape[:2]
             t0 = time.time()
-            landmarks = self.get_points_numpy_with_mediapipe_from_image(image=frame)
-            if landmarks is None:
+            # 获取MediaPipe原结果
+            mp_result = self.get_result_mediapipe_from_image(image=frame)
+            if mp_result is None or not mp_result.face_landmarks:
                 continue
+            
+            # 从MediaPipe结果提取landmarks
+            landmarks = get_all_landmark_from_result(result=mp_result)
+            if landmarks is None or len(landmarks) == 0:
+                continue
+            
             self.mediapipe_results_in_numpy = landmarks
-
+            
             t1 = time.time()
             face_num = landmarks.shape[0]
-            # frame=crop_center_rectangle(frame,frame.shape[0]//2,frame.shape[1]//2)
             if face_num == 0 or face_num > 1:
                 continue
-            # Thread(target=self.step, args=(self.frame,)).start()
-            results = self.step(self.frame)
-            # results = self.step_results
-
+            
+            # 计算脸部边界框（0-1范围）
+            points = [234, 454, 151, 200]  # 脸部关键点索引
+            points_xyz = landmarks[0][points]  # 第一个脸
+            bbox = get_box_from_points(points_xyz[..., :2])  # [xmin, xmax, ymin, ymax] 0-1范围
+            
+            # 转换为像素坐标并裁剪脸部图像
+            h, w = frame.shape[:2]
+            xmin, xmax, ymin, ymax = bbox
+            x1, x2 = int(xmin * w), int(xmax * w)
+            y1, y2 = int(ymin * h), int(ymax * h)
+            
+            # 确保边界框在图像范围内
+            x1, x2 = max(0, x1), min(w, x2)
+            y1, y2 = max(0, y1), min(h, y2)
+            
+            # 裁剪脸部图像
+            face_crop = frame[y1:y2, x1:x2]
+            if face_crop.size == 0:
+                continue
+            
+            # 将裁剪的脸部图像传给self.step
+            results = self.step(face_crop)
             if results is None:
                 continue
+            
+            # 构建结果容器
             results = AllResultContainer(
                 pitch=results.pitch,
                 yaw=results.yaw,
-                bboxes=results.bboxes,
+                bboxes=[bbox],  # 边界框格式 [xmin, xmax, ymin, ymax]
                 landmarks=landmarks,
                 head_angles=self.orig_head_angles,
             )
-            # print(type(results.bboxes))
+            
             t2 = time.time()
-            # print(
-            #     f'get_points_numpy_with_mediapipe_from_image:{t1 - t0}\n'
-            #       f'step:{t2 - t1}\n'
-            #       f'image read:{t0 - t00}\n'
-            #       )
-            if count>=1:
-                # print(f'sleep {count}s')
+            if count >= 1:
                 time.sleep(count)
             if face_num == 1:
                 break
             count += 1
-            # print(f'count:{count}')
         return results
 
     def train_lot_data(self, jsonl_path_list: list, model_save_path):
@@ -1987,14 +1510,6 @@ class IntegratedRegressionMediaPipeline:
         if self.render_in_eval:
             self.render(cap_frame=self.frame, results=results, pred_points=pred_points)
         t6 = time.time()
-        # print(f''
-        #       f't1-t0 get_results_from_capture:{t1 - t0}s\n'  # 主要是这里太慢
-        #       f't2-t1 results_to_data_dict:{t2 - t1}s\n'
-        #       f't3-t2 regression_model.predict:{t3 - t2}s\n'
-        #       f't4-t3 smooth_position:{t4 - t3}s\n'
-        #       f't5-t4 clip:{t5 - t4}s\n'
-        #       f't6-t5 render:{t6 - t5}s\n'
-        #       f'')
 
     def render(self, cap_frame=None, results=None, pred_points=None, true_points=None, frame=None, show_at_last=True):
         if frame is None:
@@ -2041,6 +1556,8 @@ class IntegratedRegressionMediaPipeline:
                         max_datasets=self.max_accumulated_datasets
                     )
                 else:
+                    if len(self.data_list)!=self.calibrate_num_points*self.every_point_has_n_images:
+                        raise Exception(f"数据量不足，需要{self.num_points*self.every_point_has_n_images}条数据，但只有{len(self.data_list)}条数据")
                     print("Using current calibration data only...")
                     self.train_regression(reset=True)
                     training_success = self.is_model_fitted()
@@ -2430,76 +1947,6 @@ class IntegratedRegressionMediaPipeline:
         progress_percent = f"{int(overall_progress * 100)}%"
         cv2.putText(img, progress_percent, (bar_x + bar_width + 10, bar_y + 15), 
                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 2)
-
-    def draw_eye_blink_status(self, img, y_start=330):
-        """绘制眼睛眨眼状态（简化版）"""
-        if not hasattr(self, 'step_results') or self.step_results is None:
-            return
-        
-        results = self.step_results
-        if not hasattr(results, 'face_blendshapes') or results.face_blendshapes is None:
-            return
-        
-        try:
-            # 获取blendshapes数据
-            blendshapes = results.face_blendshapes[0] if results.face_blendshapes else None
-            if not blendshapes:
-                return
-            
-            # 获取眼睛blendshapes值
-            left_eye_blink = 0.0
-            right_eye_blink = 0.0
-            
-            for category_name, score in zip(
-                [category.category_name for category in blendshapes.categories],
-                [category.score for category in blendshapes.categories]
-            ):
-                if category_name == 'eyeBlinkLeft':
-                    left_eye_blink = score
-                elif category_name == 'eyeBlinkRight':
-                    right_eye_blink = score
-            
-            # 眼睛状态判断（简化版）
-            left_status = "CLOSED" if left_eye_blink > self.eye_blink_threshold else "OPEN"
-            right_status = "CLOSED" if right_eye_blink > self.eye_blink_threshold else "OPEN"
-            
-            # 整体状态
-            overall_status = "CLOSED" if max(left_eye_blink, right_eye_blink) > self.eye_blink_threshold else "OPEN"
-            
-            # 绘制标题
-            cv2.putText(img, "Eye Status", (img.shape[1] - 200, y_start), 
-                       cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-            
-            y_current = y_start + 30
-            
-            # 绘制左眼状态
-            left_color = (0, 0, 255) if left_status == "CLOSED" else (0, 255, 0)
-            cv2.putText(img, f"Left: {left_status} ({left_eye_blink:.3f})", 
-                       (img.shape[1] - 200, y_current), cv2.FONT_HERSHEY_SIMPLEX, 0.5, left_color, 1)
-            
-            y_current += 25
-            
-            # 绘制右眼状态
-            right_color = (0, 0, 255) if right_status == "CLOSED" else (0, 255, 0)
-            cv2.putText(img, f"Right: {right_status} ({right_eye_blink:.3f})", 
-                       (img.shape[1] - 200, y_current), cv2.FONT_HERSHEY_SIMPLEX, 0.5, right_color, 1)
-            
-            y_current += 25
-            
-            # 绘制整体状态
-            overall_color = (0, 0, 255) if overall_status == "CLOSED" else (0, 255, 0)
-            cv2.putText(img, f"Overall: {overall_status}", 
-                       (img.shape[1] - 200, y_current), cv2.FONT_HERSHEY_SIMPLEX, 0.6, overall_color, 2)
-            
-            y_current += 30
-            
-            # 绘制阈值信息
-            cv2.putText(img, f"Threshold: {self.eye_blink_threshold}", 
-                       (img.shape[1] - 200, y_current), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (255, 255, 255), 1)
-            
-        except Exception as e:
-            print(f"Error in draw_eye_blink_status: {e}")
-            return
 
     def collect_historical_calibration_data(self, base_calibration_dir="calibration"):
         """收集所有历史校准数据的路径"""

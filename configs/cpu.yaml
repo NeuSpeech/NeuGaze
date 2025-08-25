@@ -23,7 +23,7 @@ wheel_config:
   font: Arial
 real_action_config:
   scroll_coef: 1.0
-  sys_mode: type
+  sys_mode: game_cs
   show_gaze: false
   mouse_control: true
   key_control: true
@@ -35,12 +35,12 @@ integrated_config:
   device: cpu
   cam_id: 0
   num_points: 9
-  every_point_has_n_images: 15
+  every_point_has_n_images: 25
   images_freq: 15
   each_point_wait_time: 1000
   edge: 0.05
   radius: 20
-  func: random
+  func: sequence
   window_name: track
   render_in_eval: false
   kalman_filter_std_measurement: 2.0

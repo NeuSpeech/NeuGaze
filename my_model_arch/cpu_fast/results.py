@@ -27,7 +27,6 @@ class IntegratedGazeResultContainer:
 
     pitch: np.ndarray
     yaw: np.ndarray
-    bboxes: np.ndarray
 
 
 @dataclass

@@ -137,13 +137,13 @@ class SymbolListWidget(QWidget):
                     text = widget.edit.text().strip()
                     if text:
                         current_symbols.append(text)
-                        print(f"Added symbol: {text}")
+                        # print(f"Added symbol: {text}")
                         
                 except Exception as e:
                     print(f"Error processing item {i}: {str(e)}")
                     continue
             
-            print(f"Final symbols list: {current_symbols}")
+            # print(f"Final symbols list: {current_symbols}")
             return current_symbols
             
         except Exception as e:
@@ -1265,8 +1265,8 @@ class ConfigWindow(QMainWindow):
                                 print(f"Warning: No actions widget for key {key_name}")
                                 continue
                             
-                            print(f"Actions widget type: {type(actions_widget)}")
-                            print(f"Actions widget attributes: {dir(actions_widget)}")
+                            # print(f"Actions widget type: {type(actions_widget)}")
+                            # print(f"Actions widget attributes: {dir(actions_widget)}")
                             
                             key_data = {}
                             
@@ -1274,8 +1274,8 @@ class ConfigWindow(QMainWindow):
                             try:
                                 if hasattr(actions_widget, 'symbol_list'):
                                     symbol_list = actions_widget.symbol_list
-                                    print(f"Symbol list type: {type(symbol_list)}")
-                                    print(f"Symbol list attributes: {dir(symbol_list)}")
+                                    # print(f"Symbol list type: {type(symbol_list)}")
+                                    # print(f"Symbol list attributes: {dir(symbol_list)}")
                                     if symbol_list:
                                         wheel_actions = symbol_list.get_symbols()
                                         print(f"Wheel actions: {wheel_actions}")
@@ -1307,7 +1307,7 @@ class ConfigWindow(QMainWindow):
                             
                             if key_data:
                                 mode_config[key_name] = key_data
-                                print(f"Added key_data: {key_data}")
+                                print(f"Added key_data for {key_name}: {key_data}")
                         
                         except Exception as e:
                             print(f"Error processing key: {str(e)}")
@@ -1316,7 +1316,9 @@ class ConfigWindow(QMainWindow):
                     
                     if mode_config:
                         config[mode_name] = mode_config
-                        print(f"Added mode_config: {mode_config}")
+                        print(f"Added mode_config for {mode_name}: {mode_config}")
+                    else:
+                        print(f"Warning: Empty mode_config for mode {mode_name}")
                 
                 except Exception as e:
                     print(f"Error processing mode: {str(e)}")
