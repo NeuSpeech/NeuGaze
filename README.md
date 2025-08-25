@@ -12,6 +12,11 @@
 
 *A non-invasive computer control system that combines facial expression recognition, head movement tracking, and gaze estimation, designed for hands-free human-computer interaction.*
 
+This system enables complex action game control, as demonstrated in the video showing Black Myth: Wukong defeating the Yin Tiger boss. It can also be used to play MOBA games like Honor of Kings, FPS games like CS2, and many other game types.
+
+<video src="assets/neugaze_wukong.mp4" controls width="720">
+</video>
+
 </div>
 
 ---
@@ -275,6 +280,9 @@ Head orientation controls additional functions:
 ### 🎮 Gaming & Entertainment
 
 - **🎯 Immersive Gaming**: Novel input method for enhanced gaming experiences
+- **🐒 Action Games**: Complex action game control as demonstrated with Black Myth: Wukong boss battles
+- **🏆 MOBA Games**: Strategic gameplay in Honor of Kings and similar MOBAs
+- **🎯 FPS Games**: Precision control for Counter-Strike 2 and other competitive shooters
 - **💪 Muscle Training**: Facial and neck muscle exercise through interactive control
 
 ### 🤖 Smart Device Integration
