@@ -12,9 +12,6 @@
 
 import os
 
-import torch
-import torch.nn as nn
-import torch.optim as optim
 import cv2
 import numpy as np
 import mediapipe as mp
@@ -27,9 +24,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 FaceLandmarkerResult = mp.tasks.vision.FaceLandmarkerResult
-import matplotlib.pyplot as plt
-from matplotlib.animation import FuncAnimation
-
 
 
 def get_landmark_from_result(result,image_width=None,image_height=None):
@@ -88,38 +82,40 @@ def draw_landmarks_on_image(rgb_image, detection_result):
 
 
 def plot_face_blendshapes_bar_graph(face_blendshapes):
-    # Extract the face blendshapes category names and scores.
-    face_blendshapes_names = [face_blendshapes_category.category_name for face_blendshapes_category in face_blendshapes]
-    face_blendshapes_scores = [face_blendshapes_category.score for face_blendshapes_category in face_blendshapes]
-    # indexes=[i for i,a in enumerate(face_blendshapes_names) if not a.startswith('eye')]
-    # face_blendshapes_names=[a for i,a in enumerate(face_blendshapes_names) if i in indexes]
-    # face_blendshapes_scores=[a for i,a in enumerate(face_blendshapes_scores) if i in indexes]
-    # print(face_blendshapes_names)
-    # The blendshapes are ordered in decreasing score value.
-    face_blendshapes_ranks = range(len(face_blendshapes_names))
+    # Faster OpenCV-based bar rendering to avoid matplotlib overhead
+    face_blendshapes_names = [c.category_name for c in face_blendshapes]
+    face_blendshapes_scores = [float(c.score) for c in face_blendshapes]
 
-    fig, ax = plt.subplots(figsize=(12, 12))
-    bar = ax.barh(face_blendshapes_ranks, face_blendshapes_scores, label=[str(x) for x in face_blendshapes_ranks])
-    plt.ylim()
-    ax.set_yticks(face_blendshapes_ranks, face_blendshapes_names)
-    ax.invert_yaxis()
+    # Canvas settings (higher resolution for sharper text)
+    width = 1600
+    left_margin = 320
+    right_margin = 80
+    top_margin = 70
+    bar_height = 26
+    gap = 12
+    num_items = len(face_blendshapes_names)
+    height = top_margin + (bar_height + gap) * num_items + 30
+    height = max(height, 200)
 
-    # Label each bar with values
-    for score, patch in zip(face_blendshapes_scores, bar.patches):
-        plt.text(patch.get_x() + patch.get_width(), patch.get_y(), f"{score:.4f}", va="top")
+    img = np.full((height, width, 3), 255, dtype=np.uint8)
 
-    ax.set_xlim(0,1)
-    ax.set_xlabel('Score')
-    ax.set_title("Face Blendshapes")
-    plt.tight_layout()
-    fig.canvas.draw()
-    img = np.frombuffer(fig.canvas.buffer_rgba(), dtype=np.uint8)
-    img = img.reshape(fig.canvas.get_width_height()[::-1] + (4,))
+    # Title
+    cv2.putText(img, "Face Blendshapes", (10, 40), cv2.FONT_HERSHEY_SIMPLEX, 1.2, (0, 0, 0), 2, cv2.LINE_AA)
+    cv2.putText(img, "Score", (width - right_margin - 120, 40), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (90, 90, 90), 2, cv2.LINE_AA)
 
-    # Convert RGB to BGR (OpenCV uses BGR)
-    img = cv2.cvtColor(img, cv2.COLOR_RGBA2BGR)
-
-    plt.close(fig)
+    drawable_width = width - left_margin - right_margin
+    for idx, (name, score) in enumerate(zip(face_blendshapes_names, face_blendshapes_scores)):
+        y = top_margin + idx * (bar_height + gap)
+        # Label
+        cv2.putText(img, name, (10, y + bar_height - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
+        # Bar
+        clamped_score = 0.0 if score < 0.0 else (1.0 if score > 1.0 else score)
+        bar_w = int(drawable_width * clamped_score)
+        cv2.rectangle(img, (left_margin, y), (left_margin + bar_w, y + bar_height), (66, 135, 245), -1, cv2.LINE_AA)
+        # Value text
+        text_x = left_margin + bar_w + 10
+        text_x = min(text_x, width - right_margin - 120)
+        cv2.putText(img, f"{score:.4f}", (text_x, y + bar_height - 4), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 0), 2, cv2.LINE_AA)
 
     return img
 
@@ -241,11 +237,11 @@ def main():
         else:
             raise NotImplementedError
         # print(face_landmarker_result)
-        # if len(face_landmarker_result.face_blendshapes) > 0:
-        #     # print('face_landmarker_result')
-        #     result_img=plot_face_blendshapes_bar_graph(face_landmarker_result.face_blendshapes[0])
-        #     cv2.imshow('result', result_img)
-        #     print(face_landmarker_result.facial_transformation_matrixes)
+        if len(face_landmarker_result.face_blendshapes) > 0:
+            # print('face_landmarker_result')
+            result_img=plot_face_blendshapes_bar_graph(face_landmarker_result.face_blendshapes[0])
+            cv2.imshow('result', result_img)
+            print(face_landmarker_result.facial_transformation_matrixes)
         if annotated_image is not None:
             # out.write(annotated_image)
             cv2.imshow('摄像头', annotated_image)

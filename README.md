@@ -20,6 +20,8 @@ This system enables complex action game control, as demonstrated in the video sh
 </div>
 ---
 
+We are hosting a global CS2 Arms Race Challenge: 2000 RMB for the champion. The first participant to complete the setup, achieve kills in Arms Race against bots, and publish a tutorial video will receive an additional 500 RMB bonus.
+
 ## 📋 Table of Contents
 
 - [🎯 Overview](#-overview)
@@ -174,6 +176,14 @@ The system recognizes facial expressions through MediaPipe landmarks and maps th
 | **Smile Right** (`mouthSmileRight`) | *Smile with only the right side of your mouth* | 🧭 Navigation/selection |
 | **Both Sides Smile** | *Full natural smile with both sides* | ⚡ Special commands |
 | **Head Movements** | *Tilt, turn, and nod your head* | ⌨️ WASD keys and scrolling |
+
+#### Expression Threshold Adjustment
+
+```cmd
+python learn\mediapipe_example.py
+```
+
+You can use this program to view the scores for different expressions and adjust the thresholds accordingly.
 
 #### Expression Configuration Example
 

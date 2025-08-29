@@ -1,0 +1,414 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>NeuGaze SOLO Challenge Poster</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Inter:wght@400;600;700;800&display=swap" rel="stylesheet" />
+    <style>
+      :root {
+        --bg: #0a0f0d;
+        --panel: #0f1512;
+        --line: #1f2a24;
+        --neon: #28f29c;
+        --neon-dim: rgba(40, 242, 156, 0.18);
+        --text: #d7fbe8;
+        --muted: #94b8a6;
+        --accent: #7bffca;
+      }
+      html, body {
+        margin: 0;
+        height: 100%;
+        background: radial-gradient(1200px 1200px at 50% -200px, rgba(40,242,156,0.05), transparent 60%), var(--bg);
+        color: var(--text);
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+      }
+      .poster {
+        width: 360px;
+        margin: 0 auto;
+        padding: 16px 12px 48px;
+        background: linear-gradient(180deg, rgba(18, 26, 22, 0.4), rgba(10, 15, 13, 0.8) 30%, var(--bg) 100%);
+      }
+      .ribbon {
+        height: 8px;
+        background: linear-gradient(90deg, #1be28d, #35ffc7, #1be28d);
+        border-radius: 4px;
+        box-shadow: 0 0 18px rgba(40,242,156,0.5);
+      }
+      .brandbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 8px 6px 14px;
+        color: var(--muted);
+        font-size: 12px;
+        letter-spacing: 0.02em;
+      }
+      .title {
+        margin: 8px 0 12px;
+        padding: 20px 12px 8px;
+        text-transform: uppercase;
+        font-weight: 800;
+        letter-spacing: 0.02em;
+        line-height: 1.06;
+      }
+      .title .kicker {
+        display: inline-block;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 13px;
+        color: var(--accent);
+        background: rgba(40,242,156,0.08);
+        border: 1px solid var(--neon-dim);
+        border-radius: 6px;
+        padding: 4px 8px;
+        margin-bottom: 8px;
+      }
+      .title .main {
+        font-size: 34px;
+        color: #b8ffe3;
+        text-shadow: 0 0 24px rgba(40,242,156,0.25);
+      }
+      .title .sub {
+        margin-top: 4px;
+        font-size: 18px;
+        color: var(--muted);
+      }
+      .pillline {
+        display: inline-flex;
+        gap: 10px;
+        align-items: center;
+        font-family: "JetBrains Mono", monospace;
+        padding: 6px 10px;
+        margin-left: 12px;
+        border: 1px dashed var(--neon-dim);
+        border-radius: 999px;
+        color: #c7ffe9;
+        background: rgba(40,242,156,0.06);
+      }
+      .section {
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        background: linear-gradient(180deg, rgba(22,29,26,0.6), rgba(12,16,14,0.6));
+        padding: 14px 12px;
+        margin: 14px 0;
+        box-shadow: inset 0 0 0 1px rgba(40,242,156,0.05), 0 8px 28px rgba(0,0,0,0.4);
+      }
+      .section h3 {
+        margin: 4px 0 10px;
+        font-size: 14px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--accent);
+        font-family: "JetBrains Mono", monospace;
+      }
+      .kv {
+        display: grid;
+        place-items: center;
+        padding: 8px 0 0;
+      }
+      .kv .circle {
+        width: 120px;
+        height: 120px;
+        border-radius: 50%;
+        background: radial-gradient(50% 50% at 50% 50%, rgba(40,242,156,0.24) 0%, rgba(40,242,156,0.04) 55%, transparent 60%), rgba(40,242,156,0.03);
+        border: 1px dashed var(--neon-dim);
+        box-shadow: 0 0 80px rgba(40,242,156,0.25) inset;
+      }
+      ul.clean {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      ul.clean li {
+        padding: 8px 0;
+        color: #d8ffe9;
+        border-bottom: 1px dashed rgba(40,242,156,0.12);
+      }
+      ul.clean li:last-child { border-bottom: none; }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+      .badge {
+        display: inline-block;
+        padding: 4px 8px;
+        border-radius: 999px;
+        border: 1px solid var(--neon-dim);
+        background: rgba(40,242,156,0.06);
+        color: #cffff0;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+      }
+      .prize {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 10px 12px;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        background: rgba(40,242,156,0.04);
+      }
+      .money { color: var(--neon); font-weight: 700; letter-spacing: 0.02em; }
+      .qrbox {
+        height: 160px;
+        border: 1px dashed var(--neon-dim);
+        border-radius: 12px;
+        display: grid;
+        place-items: center;
+        color: var(--muted);
+        background: repeating-linear-gradient(45deg, rgba(40,242,156,0.03) 0 6px, transparent 6px 12px);
+      }
+      .footer {
+        padding-top: 10px;
+        text-align: center;
+        color: var(--muted);
+        font-size: 12px;
+      }
+      .demo {
+        margin-top: 8px;
+        border-radius: 10px;
+        overflow: hidden;
+        border: 1px solid var(--line);
+      }
+      .demo img { width: 100%; display: block; }
+      .link { color: var(--accent); text-decoration: none; }
+      
+      /* Export sizes */
+      .poster.full { width: 800px; }
+      .poster.mobile { width: 375px; }
+      .poster.wechat { width: 600px; }
+      
+      .export-controls {
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(0,0,0,0.8);
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid var(--neon);
+        z-index: 1000;
+      }
+      
+      .export-btn {
+        display: block;
+        width: 100%;
+        margin: 5px 0;
+        padding: 8px 12px;
+        background: var(--neon);
+        color: var(--bg);
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-family: "JetBrains Mono", monospace;
+        font-size: 12px;
+        font-weight: 600;
+      }
+      
+      .export-btn:hover {
+        background: var(--accent);
+        transform: translateY(-1px);
+      }
+      
+      .size-selector {
+        margin-bottom: 10px;
+        text-align: center;
+        color: var(--text);
+        font-size: 12px;
+      }
+      
+      .size-selector select {
+        background: var(--bg);
+        color: var(--text);
+        border: 1px solid var(--neon);
+        border-radius: 4px;
+        padding: 4px 8px;
+        margin-left: 8px;
+        font-family: "JetBrains Mono", monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="poster">
+      <div class="ribbon"></div>
+      <div class="brandbar" style="align-items:flex-start;gap:6px;">
+        <div>
+          <div style="font-weight:800;font-size:18px;color:#cffff0;letter-spacing:0.02em;">NeuSpeech / NeuGaze</div>
+          <div style="margin-top:4px;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--muted);">项目主页：https://github.com/NeuSpeech/NeuGaze</div>
+        </div>
+        <div class="badge">Windows • CPU</div>
+      </div>
+
+      <div class="title">
+        <div class="kicker">NEUGAZE SOLO</div>
+        <div class="main">Challenge 挑战赛</div>
+        <div class="sub">全球 CS2 军备竞赛挑战 · 免手操控</div>
+      </div>
+
+      <div class="pillline">TIME 即日起 · 地点 Online · 语言 中文/English</div>
+
+      <div class="kv">
+        <div class="circle"></div>
+      </div>
+
+      <div class="section">
+        <h3>活动简介 01</h3>
+        <ul class="clean">
+          <li><strong>用脸打游戏</strong>：用 NeuGaze 在 CS2 军备竞赛中作战，挑战极限操控。</li>
+          <li><strong>真实上镜</strong>：比赛与教程录制均需露脸，公开展示真实操作。</li>
+        </ul>
+        <div class="demo"><video src="./neugaze_wukong.mp4" controls style="width:100%;border-radius:8px;" alt="NeuGaze 黑神话悟空演示" /></div>
+        <div style="margin-top:8px;font-size:12px;color:var(--muted);">NeuGaze 实战：黑神话·悟空操控演示</div>
+      </div>
+
+      <div class="section">
+        <h3>活动流程 02</h3>
+        <ul class="clean">
+          <li><strong>赛前准备</strong>：参赛队伍提前自行调整代码，优化 NeuGaze 配置。</li>
+          <li><strong>比赛形式</strong>：CS2 自建房间，根据参赛人数调整赛程。</li>
+          <li><strong>积分制</strong>：参赛选手进行 3 场以上对决，积分累积最高即为冠军。</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>参赛规则 03</h3>
+        <ul class="clean">
+          <li>仅限 <strong>CS2 军备竞赛</strong> 模式，严禁第三方作弊工具。</li>
+          <li>团队或个人均可报名，但比赛现场只允许 <strong>一名实际玩家</strong> 操作。</li>
+          <li>其余成员可进行技术支持（如写代码、训模型等），技术人员不能在现场。</li>
+          <li><strong>严禁外挂</strong>：不得使用 AI 检测屏幕等方式作弊。</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>奖励规则 04</h3>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <div class="prize"><span>冠军（MVP）</span><span class="money">¥2000</span></div>
+          <div class="prize"><span>教学奖 1名</span><span class="money">¥500</span></div>
+          <div class="prize"><span>宣传奖 1名</span><span class="money">¥500</span></div>
+        </div>
+        <div style="margin-top:8px;color:var(--muted);font-size:12px;">
+          * 冠军奖：需要把源代码更新到NeuGaze仓库中，奖池可能会继续扩大
+          * 教学奖：第一个只用NeuGaze系统在CS2军备竞赛中打赢人机、击杀10个人机、把CS2操作教程放网上的<br>
+          * 宣传奖：将此图完整或拆开，发在小红书、B站、抖音、快手、微信公众号、微信朋友圈平台，内容是帖子或视频等形式都可以，内容中提到@未来的小马哥 #NeuGaze军备竞赛 #NeuGaze助残 #CS2，2025年9月15号20:00（北京时间）将帖子或视频截图发给我，点赞评论加和最多的一位用户获得500元，发了多个平台或多个内容都可以叠加点赞评论数据，不叠加奖金。<br>
+          * 欢迎机构或个人赞助比赛增加奖池
+        </div>
+      </div>
+
+      <div class="section">
+        <h3>报名方式 05</h3>
+        <ul class="clean">
+          <li>请前往 <strong>项目主页</strong> 查看报名说明与赛程更新。</li>
+          <li>可在项目主页添加交流群信息进行沟通。</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h3>项目主页 06</h3>
+        <div style="font-family:'JetBrains Mono',monospace;color:#cffff0;word-break:break-all;">
+          https://github.com/NeuSpeech/NeuGaze
+        </div>
+      </div>
+
+      <div class="footer">© NeuGaze • 非商业研究与无障碍用途｜License: CC BY-NC 4.0</div>
+    </div>
+
+    <!-- Export Controls -->
+    <div class="export-controls">
+      <div class="size-selector">
+        尺寸选择:
+        <select id="sizeSelect">
+          <option value="full">全尺寸 (800px)</option>
+          <option value="wechat">微信公众号 (600px)</option>
+          <option value="mobile">手机尺寸 (375px)</option>
+        </select>
+      </div>
+      <button class="export-btn" onclick="exportPoster()">导出当前尺寸</button>
+      <button class="export-btn" onclick="exportAllSizes()">导出所有尺寸</button>
+      <button class="export-btn" onclick="previewSize()">预览尺寸</button>
+    </div>
+
+    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
+    <script>
+      let currentSize = 'full';
+      
+      function previewSize() {
+        const size = document.getElementById('sizeSelect').value;
+        const poster = document.querySelector('.poster');
+        
+        // Remove all size classes
+        poster.classList.remove('full', 'wechat', 'mobile');
+        // Add selected size class
+        poster.classList.add(size);
+        currentSize = size;
+      }
+      
+      function exportPoster() {
+        const poster = document.querySelector('.poster');
+        const size = document.getElementById('sizeSelect').value;
+        
+        // Ensure correct size is applied
+        poster.classList.remove('full', 'wechat', 'mobile');
+        poster.classList.add(size);
+        
+        // Wait for resize to complete
+        setTimeout(() => {
+          html2canvas(poster, {
+            backgroundColor: '#0a0f0d',
+            scale: 2,
+            useCORS: true,
+            allowTaint: true
+          }).then(canvas => {
+            const link = document.createElement('a');
+            link.download = `neugaze_poster_${size}.png`;
+            link.href = canvas.toDataURL();
+            link.click();
+          });
+        }, 100);
+      }
+      
+      function exportAllSizes() {
+        const sizes = ['full', 'wechat', 'mobile'];
+        let currentIndex = 0;
+        
+        function exportNext() {
+          if (currentIndex >= sizes.length) return;
+          
+          const size = sizes[currentIndex];
+          const poster = document.querySelector('.poster');
+          
+          poster.classList.remove('full', 'wechat', 'mobile');
+          poster.classList.add(size);
+          
+          setTimeout(() => {
+            html2canvas(poster, {
+              backgroundColor: '#0a0f0d',
+              scale: 2,
+              useCORS: true,
+              allowTaint: true
+            }).then(canvas => {
+              const link = document.createElement('a');
+              link.download = `neugaze_poster_${size}.png`;
+              link.href = canvas.toDataURL();
+              link.click();
+              
+              currentIndex++;
+              setTimeout(exportNext, 500);
+            });
+          }, 100);
+        }
+        
+        exportNext();
+      }
+      
+      // Initialize with full size
+      document.addEventListener('DOMContentLoaded', function() {
+        previewSize();
+      });
+    </script>
+  </body>
+  </html>
+
+
